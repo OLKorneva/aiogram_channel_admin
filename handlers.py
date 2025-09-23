@@ -1,14 +1,12 @@
 from os import getenv
 from dotenv import load_dotenv
-from aiogram import Router
-from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER
+from aiogram import Router, Bot, types
+from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, CommandStart
 from aiogram.types import ChatMemberUpdated
-from aiogram.filters import CommandStart
+from aiogram.exceptions import TelegramAPIError
 from utils import give_user_inf, event_message
 import asyncio
 import logging
-from aiogram import Bot, types
-from aiogram.exceptions import TelegramAPIError
 
 router = Router()
 
@@ -16,25 +14,38 @@ router = Router()
 load_dotenv()
 ADMIN_ID = getenv("ADMIN_ID")
 OWNER_ID = getenv("OWNER_ID")
-ADMIN_LIST = [ADMIN_ID, OWNER_ID]
+ADMIN_LIST = [id_ for id_ in [ADMIN_ID, OWNER_ID] if id_ is not None]
+if not ADMIN_LIST:
+    logging.error("ADMIN_LIST пуст! Проверьте ADMIN_ID и OWNER_ID в .env")
+    raise ValueError("ADMIN_LIST не может быть пустым")
+
 CHANNEL_ID = getenv("CHANNEL_ID")
+if not CHANNEL_ID:
+    logging.error("CHANNEL_ID не задан в .env")
+    raise ValueError("CHANNEL_ID обязателен")
 
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
+    logging.info(f"Пользователь {message.from_user.id} отправил /start")
     await message.answer(f"👋 Теперь я смогу отправлять вам уведомления!")
 
 @router.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
-async def on_user_joined(event: ChatMemberUpdated, bot: Bot):  # bot как dependency
+async def on_user_joined(event: ChatMemberUpdated, bot: Bot):
     if event.chat.id == int(CHANNEL_ID):
-        user = event.new_chat_member.user
-        await send_message_to_admin(bot, user, event_message.get('add'))
+        try:
+            user = event.new_chat_member.user
+            await send_message_to_admin(bot, user, event_message.get('add'))
+        except Exception as e:
+            logging.error(f"Ошибка при обработке подписки: {e}, user: {event.new_chat_member.user.id}")
 
 @router.chat_member(ChatMemberUpdatedFilter(IS_MEMBER >> IS_NOT_MEMBER))
-async def on_user_left(event: ChatMemberUpdated, bot: Bot):  # bot как dependency
+async def on_user_left(event: ChatMemberUpdated, bot: Bot):
     if event.chat.id == int(CHANNEL_ID):
-        user = event.old_chat_member.user
-        await send_message_to_admin(bot, user, event_message.get('left'))
-
+        try:
+            user = event.old_chat_member.user
+            await send_message_to_admin(bot, user, event_message.get('left'))
+        except Exception as e:
+            logging.error(f"Ошибка при обработке отписки: {e}, user: {event.old_chat_member.user.id}")
 
 # Исключения для повторных попыток
 RETRY_EXC = (
@@ -65,8 +76,12 @@ async def send_message_to_admin(
     Returns:
         Список отправленных сообщений
     """
-    user_inf = await give_user_inf(user)
-    admin_message = f'{event}\n{user_inf}'
+    try:
+        user_inf = await give_user_inf(user)
+        admin_message = f'{event}\n{user_inf}'
+    except Exception as e:
+        logging.error(f"Ошибка при получении информации о пользователе {user.id}: {e}")
+        admin_message = f'{event}\nПользователь: {user.id} (информация недоступна)'
 
     sent_messages = []
 
