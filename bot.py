@@ -11,13 +11,15 @@ import asyncio
 from handlers import router
 
 # Конфигурация логирования
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-#     filename="bot.log",
-#     encoding="utf-8"
-# )
-logging.StreamHandler(sys.stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # Обязательно для Render
+        logging.FileHandler("bot.log", encoding="utf-8")
+    ],
+    force=True  # Перезаписывает существующие handlers
+)
 
 # Глобальные переменные
 load_dotenv()
@@ -38,28 +40,30 @@ RETRY_EXC = (
 )
 
 async def handle_webhook(request, bot, dp):
-    """Обработка входящих обновлений от Telegram"""
+    print("=== ВХОДЯЩИЙ WEBHOOK ===")
     try:
         data = await request.json()
-        update = Update(**data)  # Создаём объект Update
-        await dp.feed_update(bot=bot, update=update)  # Передаём обновление в Dispatcher
+        print(f"Получено обновление: {data.get('message', {}).get('text', 'нет текста')}")
+        update = Update(**data)
+        await dp.feed_update(bot=bot, update=update)
+        print("✅ Обновление обработано")
         return web.Response(status=200)
     except Exception as e:
-        logging.error(f"Ошибка обработки webhook: {e}")
+        print(f"❌ Ошибка в handle_webhook: {e}")
+        logging.error(f"Ошибка webhook: {e}")
         return web.Response(status=500)
 
 async def on_startup(bot, _):
     """Установка webhook при запуске"""
+    print("=== ON_STARTUP ===")
+    print(f"WEBHOOK_URL: {WEBHOOK_URL}")
     try:
         await bot.set_webhook(WEBHOOK_URL)
         logging.info(f"Webhook установлен на {WEBHOOK_URL}")
-        print(f"Бот запущен в режиме webhook на {WEBHOOK_URL}")
-    except RETRY_EXC as e:
-        logging.warning(f"Ошибка установки webhook: {e}. Повтор через 5с")
-        await asyncio.sleep(5)
-        await bot.set_webhook(WEBHOOK_URL)  # Повторная попытка
+        print(f"✅ Webhook установлен: {WEBHOOK_URL}")
     except Exception as e:
-        logging.exception(f"Фатальная ошибка при установке webhook: {e}")
+        print(f"❌ Ошибка установки webhook: {e}")
+        logging.exception(f"Ошибка webhook: {e}")
         raise
 
 async def on_shutdown(bot, _):
@@ -72,10 +76,12 @@ async def on_shutdown(bot, _):
         logging.error(f"Ошибка при удалении webhook: {e}")
 
 async def main():
-    # Инициализация бота и диспетчера
+    print("=== ЗАПУСК BOT ===")  # Для проверки в логах Render
     bot = Bot(token=BOT_TOKEN)
+    print(f"BOT_TOKEN загружен: {'да' if BOT_TOKEN else 'НЕТ! Ошибка!'}")
     dp = Dispatcher()
     dp.include_router(router)
+    print("Dispatcher и router подключены")
 
     # Настройка веб-сервера
     app = web.Application()
