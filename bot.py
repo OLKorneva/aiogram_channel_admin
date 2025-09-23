@@ -1,3 +1,4 @@
+import sys
 from os import getenv
 from dotenv import load_dotenv
 import logging
@@ -10,12 +11,13 @@ import asyncio
 from handlers import router
 
 # Конфигурация логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    filename="bot.log",
-    encoding="utf-8"
-)
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+#     filename="bot.log",
+#     encoding="utf-8"
+# )
+logging.StreamHandler(sys.stdout)
 
 # Глобальные переменные
 load_dotenv()
