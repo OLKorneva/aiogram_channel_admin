@@ -1,13 +1,12 @@
 from os import getenv
 from dotenv import load_dotenv
-from aiogram import Router, Bot, types
+from aiogram import Router
 from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER
 from aiogram.types import ChatMemberUpdated
 from aiogram.filters import CommandStart
 from utils import give_user_inf, event_message
 import asyncio
 import logging
-from typing import Optional
 from aiogram import Bot, types
 from aiogram.exceptions import TelegramAPIError
 
@@ -16,11 +15,13 @@ router = Router()
 # Глобальные переменные
 load_dotenv()
 ADMIN_ID = getenv("ADMIN_ID")
+OWNER_ID = getenv("OWNER_ID")
+ADMIN_LIST = [ADMIN_ID, OWNER_ID]
 CHANNEL_ID = getenv("CHANNEL_ID")
 
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
-    await message.answer("👋 Теперь я смогу отправлять вам уведомления!")
+    await message.answer(f"👋 Теперь я смогу отправлять вам уведомления!")
 
 @router.chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def on_user_joined(event: ChatMemberUpdated, bot: Bot):  # bot как dependency
@@ -50,9 +51,9 @@ async def send_message_to_admin(
         event: str,
         max_retries: int = 3,
         initial_delay: float = 1.0
-) -> Optional[types.Message]:
+) -> list[types.Message]:
     """
-    Отправляет сообщение админу с обработкой ошибок и повторными попытками
+    Отправляет сообщение всем админам с обработкой ошибок и повторными попытками
 
     Args:
         bot: Экземпляр бота
@@ -62,47 +63,52 @@ async def send_message_to_admin(
         initial_delay: Начальная задержка между попытками
 
     Returns:
-        Message object если успешно, None если все попытки провалились
+        Список отправленных сообщений
     """
     user_inf = await give_user_inf(user)
     admin_message = f'{event}\n{user_inf}'
 
-    delay = initial_delay
-    attempt = 0
+    sent_messages = []
 
-    while attempt < max_retries:
-        try:
-            message = await bot.send_message(
-                chat_id=ADMIN_ID,
-                text=admin_message,
-                parse_mode="HTML",
-                disable_web_page_preview=True
-            )
-            logging.info(f"Сообщение админу отправлено успешно (попытка {attempt + 1})")
-            return message
+    for id_sender in ADMIN_LIST:
+        delay = initial_delay
+        attempt = 0
 
-        except RETRY_EXC as e:
-            attempt += 1
-            if attempt >= max_retries:
-                logging.error(
-                    f"Не удалось отправить сообщение админу после {max_retries} попыток. "
-                    f"Ошибка: {e}. User: {user.id}, Event: {event}"
+        while attempt < max_retries:
+            try:
+                message = await bot.send_message(
+                    chat_id=id_sender,
+                    text=admin_message,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
                 )
-                return None
+                logging.info(f"Сообщение админу {id_sender} отправлено успешно (попытка {attempt + 1}), о юзере {user.id}")
+                sent_messages.append(message)
+                break  # Переходим к следующему админу
 
-            logging.warning(
-                f"Ошибка при отправке сообщения админу (попытка {attempt}/{max_retries}): {e}. "
-                f"Повтор через {delay:.1f} сек."
-            )
+            except RETRY_EXC as e:
+                attempt += 1
+                if attempt >= max_retries:
+                    logging.error(
+                        f"Не удалось отправить сообщение админу {id_sender} после {max_retries} попыток. "
+                        f"Ошибка: {e}. User: {user.id}, Event: {event}"
+                    )
+                    break
 
-            await asyncio.sleep(delay)
-            delay *= 2  # Экспоненциальная задержка
+                logging.warning(
+                    f"Ошибка при отправке сообщения админу {id_sender} (попытка {attempt}/{max_retries}): {e}. "
+                    f"Повтор через {delay:.1f} сек."
+                )
 
-        except Exception as e:
-            logging.exception(
-                f"Неожиданная ошибка при отправке сообщения админу. "
-                f"User: {user.id}, Event: {event}"
-            )
-            return None
+                await asyncio.sleep(delay)
+                delay *= 2  # Экспоненциальная задержка
 
-    return None
+            except Exception as e:
+                logging.exception(
+                    f"Неожиданная ошибка при отправке сообщения админу {id_sender}. "
+                    f"User: {user.id}, Event: {event}"
+                )
+                break  # Переходим к следующему админу
+
+    logging.info(f"Отправлено сообщений {len(sent_messages)} из {len(ADMIN_LIST)} админам")
+    return sent_messages
