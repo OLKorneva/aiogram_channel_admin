@@ -105,11 +105,12 @@ async def cmd_new(message: Message, state: FSMContext):
     )
 
 # Вторая функция: обработка callback-запроса
-@router.callback_query(F.data.in_(choice_callbacks))
+@router.callback_query(F.data.in_(choice_callbacks), UserState.waiting_for_text)
 async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Извлекаем текст из состояния
     data = await state.get_data()
     user_text = data.get('user_text', 'Неизвестный текст')  # Получаем сохранённый текст
+    await callback.answer('Генерирую')
 
     if callback.data == choice_callbacks[0]:
         await send_message_to_admin(
