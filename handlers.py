@@ -110,20 +110,40 @@ async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Извлекаем текст из состояния
     data = await state.get_data()
     user_text = data.get('user_text', 'коллега')  # Получаем сохранённый текст
-    await callback.answer('Генерирую')
+
+    try:
+        await callback.message.edit_text(
+            'Генерирую',
+            reply_markup=None
+        )
+    except Exception as e:
+        logging.error(f"Ошибка при редактировании сообщения: {e}")
+        await callback.message.answer('Генерирую')
 
     if callback.data == choice_callbacks[0]:
-        await send_message_to_admin(
-            bot,
+        await callback.message.answer(
             event_message.get('greet_message').format(user_text, ANALYTICS_URL),
-            sign_button
+            reply_markup=sign_button
         )
     else:
-        await send_message_to_admin(
-            bot,
+        await callback.message.answer(
             event_message.get('farewell_message').format(user_text),
-            sign_button
+            reply_markup=sign_button
         )
+
+
+    # if callback.data == choice_callbacks[0]:
+    #     await send_message_to_admin(
+    #         bot,
+    #         event_message.get('greet_message').format(user_text, ANALYTICS_URL),
+    #         sign_button
+    #     )
+    # else:
+    #     await send_message_to_admin(
+    #         bot,
+    #         event_message.get('farewell_message').format(user_text),
+    #         sign_button
+    #     )
 
     # Очищаем состояние после обработки
     await state.clear()
