@@ -39,7 +39,7 @@ if not SIGN_URL or not ANALYTICS_URL:
 #     waiting_for_text = State()  # Состояние для хранения текста
 
 sign_button =InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Подписаться на аналитику', url=ANALYTICS_URL)]
+    [InlineKeyboardButton(text='Подписаться на аналитику', url=SIGN_URL)]
 ])
 
 choice_text = ['Приветствовать', 'Прощаться']
