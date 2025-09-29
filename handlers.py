@@ -109,7 +109,7 @@ async def cmd_new(message: Message, state: FSMContext):
 async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
     # Извлекаем текст из состояния
     data = await state.get_data()
-    user_text = data.get('user_text', 'Неизвестный текст')  # Получаем сохранённый текст
+    user_text = data.get('user_text', 'коллега')  # Получаем сохранённый текст
     await callback.answer('Генерирую')
 
     if callback.data == choice_callbacks[0]:
