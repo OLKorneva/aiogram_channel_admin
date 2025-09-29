@@ -68,7 +68,7 @@ async def on_user_joined(event: ChatMemberUpdated, bot: Bot):
         try:
             user = event.new_chat_member.user
             await send_message_to_admin(bot, get_user_inf(user, event_message.get('add')))
-            await send_message_to_admin(bot, event_message.get('greet_message').format(get_user_name(user)), sign_button)
+            await send_message_to_admin(bot, event_message.get('greet_message').format(get_user_name(user), ANALYTICS_URL), sign_button)
         except Exception as e:
             logging.error(f"Ошибка при обработке подписки: {e}, user: {event.new_chat_member.user.id}")
 
@@ -114,7 +114,7 @@ async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if callback.data == choice_callbacks[0]:
         await send_message_to_admin(
             bot,
-            event_message.get('greet_message').format(user_text),
+            event_message.get('greet_message').format(user_text, ANALYTICS_URL),
             sign_button
         )
     else:
