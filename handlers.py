@@ -94,11 +94,15 @@ async def cmd_new(message: Message, state: FSMContext):
 
     await message.answer(
             event_message.get('greet_message').format(user_text, ANALYTICS_URL),
-            reply_markup=sign_button
+            reply_markup=sign_button,
+            parse_mode="HTML",
+            disable_web_page_preview=True,
         )
     await message.answer(
             event_message.get('farewell_message').format(user_text),
-            reply_markup=sign_button
+            reply_markup=sign_button,
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
 #
 #
