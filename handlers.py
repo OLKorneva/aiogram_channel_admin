@@ -3,10 +3,10 @@ from os import getenv
 from dotenv import load_dotenv
 from aiogram import Router, Bot, types, F
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+#from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, CommandStart
-from aiogram.types import ChatMemberUpdated, CallbackQuery, Message
+from aiogram.types import ChatMemberUpdated, Message
 from aiogram.exceptions import TelegramAPIError
 from utils import get_user_inf, event_message, get_user_name
 import asyncio
@@ -34,9 +34,9 @@ if not SIGN_URL or not ANALYTICS_URL:
     logging.error("SIGN_URL или ANALYTICS_URL не заданы в .env")
     raise ValueError("SIGN_URL и ANALYTICS_URL обязательны")
 
-# Определяем состояния
-class UserState(StatesGroup):
-    waiting_for_text = State()  # Состояние для хранения текста
+# # Определяем состояния
+# class UserState(StatesGroup):
+#     waiting_for_text = State()  # Состояние для хранения текста
 
 sign_button =InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text='Подписаться на аналитику', url=ANALYTICS_URL)]
@@ -92,44 +92,54 @@ async def cmd_new(message: Message, state: FSMContext):
     user_text = message.text.strip().capitalize()
     logging.info(f"Админ {message.from_user.id} отправил текст: {user_text}")
 
-    # Сохраняем текст в состоянии
-    await state.update_data(user_text=user_text)
-
-    # Устанавливаем состояние
-    await state.set_state(UserState.waiting_for_text)
-
-    # Отвечаем пользователю с кнопкой
     await message.answer(
-        text=event_message.get('choice').format(user_text),
-        reply_markup=choice_button
-    )
-
-# Вторая функция: обработка callback-запроса
-@router.callback_query(F.data.in_(choice_callbacks), UserState.waiting_for_text)
-async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
-    # Извлекаем текст из состояния
-    data = await state.get_data()
-    user_text = data.get('user_text', 'коллега')  # Получаем сохранённый текст
-
-    try:
-        await callback.message.edit_text(
-            'Генерирую',
-            reply_markup=None
-        )
-    except Exception as e:
-        logging.error(f"Ошибка при редактировании сообщения: {e}")
-        await callback.message.answer('Генерирую')
-
-    if callback.data == choice_callbacks[0]:
-        await callback.message.answer(
             event_message.get('greet_message').format(user_text, ANALYTICS_URL),
             reply_markup=sign_button
         )
-    else:
-        await callback.message.answer(
+    await message.answer(
             event_message.get('farewell_message').format(user_text),
             reply_markup=sign_button
         )
+#
+#
+#     # Сохраняем текст в состоянии
+#     await state.update_data(user_text=user_text)
+#
+#     # Устанавливаем состояние
+#     await state.set_state(UserState.waiting_for_text)
+#
+#     # Отвечаем пользователю с кнопкой
+#     await message.answer(
+#         text=event_message.get('choice').format(user_text),
+#         reply_markup=choice_button
+#     )
+#
+# # Вторая функция: обработка callback-запроса
+# @router.callback_query(F.data.in_(choice_callbacks), UserState.waiting_for_text)
+# async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
+#     # Извлекаем текст из состояния
+#     data = await state.get_data()
+#     user_text = data.get('user_text', 'коллега')  # Получаем сохранённый текст
+#
+#     try:
+#         await callback.message.edit_text(
+#             'Генерирую',
+#             reply_markup=None
+#         )
+#     except Exception as e:
+#         logging.error(f"Ошибка при редактировании сообщения: {e}")
+#         await callback.message.answer('Генерирую')
+#
+#     if callback.data == choice_callbacks[0]:
+#         await callback.message.answer(
+#             event_message.get('greet_message').format(user_text, ANALYTICS_URL),
+#             reply_markup=sign_button
+#         )
+#     else:
+#         await callback.message.answer(
+#             event_message.get('farewell_message').format(user_text),
+#             reply_markup=sign_button
+#         )
 
 
     # if callback.data == choice_callbacks[0]:
