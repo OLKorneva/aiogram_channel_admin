@@ -2,9 +2,7 @@ from os import getenv
 
 from dotenv import load_dotenv
 from aiogram import Router, Bot, types, F
-from aiogram.fsm.context import FSMContext
-#from aiogram.fsm.state import State, StatesGroup
-from aiogram.utils.keyboard import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardMarkup
 from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, CommandStart
 from aiogram.types import ChatMemberUpdated, Message
 from aiogram.exceptions import TelegramAPIError
@@ -34,20 +32,6 @@ if not SIGN_URL or not ANALYTICS_URL:
     logging.error("SIGN_URL или ANALYTICS_URL не заданы в .env")
     raise ValueError("SIGN_URL и ANALYTICS_URL обязательны")
 
-# # Определяем состояния
-# class UserState(StatesGroup):
-#     waiting_for_text = State()  # Состояние для хранения текста
-
-sign_button =InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Подписаться на аналитику', url=SIGN_URL)]
-])
-
-choice_text = ['Приветствовать', 'Прощаться']
-choice_callbacks = ['greet', 'farewell']
-choice_button =InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text=choice_text[0], callback_data=choice_callbacks[0]),
-     InlineKeyboardButton(text=choice_text[1], callback_data=choice_callbacks[1])]])
-
 # Исключения для повторных попыток
 RETRY_EXC = (
     TelegramAPIError,
@@ -67,8 +51,14 @@ async def on_user_joined(event: ChatMemberUpdated, bot: Bot):
     if event.chat.id == int(CHANNEL_ID):
         try:
             user = event.new_chat_member.user
-            await send_message_to_admin(bot, get_user_inf(user, event_message.get('add')))
-            await send_message_to_admin(bot, event_message.get('greet_message').format(get_user_name(user), ANALYTICS_URL), sign_button)
+            await send_message_to_admin(
+                bot,
+                get_user_inf(user, event_message.get('add'))
+            )
+            await send_message_to_admin(
+                bot,
+                event_message.get('greet_message').format(get_user_name(user), ANALYTICS_URL, SIGN_URL)
+            )
         except Exception as e:
             logging.error(f"Ошибка при обработке подписки: {e}, user: {event.new_chat_member.user.id}")
 
@@ -77,14 +67,19 @@ async def on_user_left(event: ChatMemberUpdated, bot: Bot):
     if event.chat.id == int(CHANNEL_ID):
         try:
             user = event.old_chat_member.user
-            await send_message_to_admin(bot, get_user_inf(user, event_message.get('left')))
-            await send_message_to_admin(bot, event_message.get('farewell_message').format(get_user_name(user)), sign_button)
+            await send_message_to_admin(
+                bot,
+                get_user_inf(user, event_message.get('left'))
+            )
+            await send_message_to_admin(
+                bot,
+                event_message.get('farewell_message').format(get_user_name(user), SIGN_URL)
+            )
         except Exception as e:
             logging.error(f"Ошибка при обработке отписки: {e}, user: {event.old_chat_member.user.id}")
 
-# Первая функция: обработка текстового сообщения
 @router.message(F.text)
-async def cmd_new(message: Message, state: FSMContext):
+async def cmd_new(message: Message):
     if str(message.from_user.id) not in ADMIN_LIST:
         await message.answer("Эта команда доступна только администраторам!")
         return
@@ -93,74 +88,15 @@ async def cmd_new(message: Message, state: FSMContext):
     logging.info(f"Админ {message.from_user.id} отправил текст: {user_text}")
 
     await message.answer(
-            event_message.get('greet_message').format(user_text, ANALYTICS_URL),
-            reply_markup=sign_button,
+            event_message.get('greet_message').format(user_text, ANALYTICS_URL, SIGN_URL),
             parse_mode="HTML",
             disable_web_page_preview=True,
         )
     await message.answer(
-            event_message.get('farewell_message').format(user_text),
-            reply_markup=sign_button,
+            event_message.get('farewell_message').format(user_text, SIGN_URL),
             parse_mode="HTML",
             disable_web_page_preview=True
         )
-#
-#
-#     # Сохраняем текст в состоянии
-#     await state.update_data(user_text=user_text)
-#
-#     # Устанавливаем состояние
-#     await state.set_state(UserState.waiting_for_text)
-#
-#     # Отвечаем пользователю с кнопкой
-#     await message.answer(
-#         text=event_message.get('choice').format(user_text),
-#         reply_markup=choice_button
-#     )
-#
-# # Вторая функция: обработка callback-запроса
-# @router.callback_query(F.data.in_(choice_callbacks), UserState.waiting_for_text)
-# async def create_message(callback: CallbackQuery, state: FSMContext, bot: Bot):
-#     # Извлекаем текст из состояния
-#     data = await state.get_data()
-#     user_text = data.get('user_text', 'коллега')  # Получаем сохранённый текст
-#
-#     try:
-#         await callback.message.edit_text(
-#             'Генерирую',
-#             reply_markup=None
-#         )
-#     except Exception as e:
-#         logging.error(f"Ошибка при редактировании сообщения: {e}")
-#         await callback.message.answer('Генерирую')
-#
-#     if callback.data == choice_callbacks[0]:
-#         await callback.message.answer(
-#             event_message.get('greet_message').format(user_text, ANALYTICS_URL),
-#             reply_markup=sign_button
-#         )
-#     else:
-#         await callback.message.answer(
-#             event_message.get('farewell_message').format(user_text),
-#             reply_markup=sign_button
-#         )
-
-
-    # if callback.data == choice_callbacks[0]:
-    #     await send_message_to_admin(
-    #         bot,
-    #         event_message.get('greet_message').format(user_text, ANALYTICS_URL),
-    #         sign_button
-    #     )
-    # else:
-    #     await send_message_to_admin(
-    #         bot,
-    #         event_message.get('farewell_message').format(user_text),
-    #         sign_button
-    #     )
-
-    # Очищаем состояние после обработки
-    await state.clear()
 
 async def send_message_to_admin(
         bot: Bot,
@@ -218,9 +154,9 @@ async def send_message_to_admin(
                 await asyncio.sleep(delay)
                 delay *= 2  # Экспоненциальная задержка
 
-            except Exception as e:
+            except Exception as er:
                 logging.exception(
-                    f"Неожиданная ошибка при отправке сообщения {admin_message[:10]} админу {id_sender}. "
+                    f"Неожиданная ошибка при отправке сообщения {admin_message[:10]} админу {id_sender}: {str(er)}. "
                 )
                 break  # Переходим к следующему админу
 
