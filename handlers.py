@@ -3,7 +3,7 @@ from os import getenv
 from dotenv import load_dotenv
 from aiogram import Router, Bot, types, F
 from aiogram.utils.keyboard import InlineKeyboardMarkup
-from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, CommandStart
+from aiogram.filters import ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, CommandStart, Command
 from aiogram.types import ChatMemberUpdated, Message
 from aiogram.exceptions import TelegramAPIError
 from utils import get_user_inf, event_message, get_user_name
@@ -55,10 +55,6 @@ async def on_user_joined(event: ChatMemberUpdated, bot: Bot):
                 bot,
                 get_user_inf(user, event_message.get('add'))
             )
-            await send_message_to_admin(
-                bot,
-                event_message.get('greet_message').format(get_user_name(user), ANALYTICS_URL, SIGN_URL)
-            )
         except Exception as e:
             logging.error(f"Ошибка при обработке подписки: {e}, user: {event.new_chat_member.user.id}")
 
@@ -71,29 +67,33 @@ async def on_user_left(event: ChatMemberUpdated, bot: Bot):
                 bot,
                 get_user_inf(user, event_message.get('left'))
             )
-            await send_message_to_admin(
-                bot,
-                event_message.get('farewell_message').format(get_user_name(user), SIGN_URL)
-            )
         except Exception as e:
             logging.error(f"Ошибка при обработке отписки: {e}, user: {event.old_chat_member.user.id}")
 
-@router.message(F.text)
-async def cmd_new(message: Message):
+@router.message(Command('greet'))
+async def cmd_greet(message: Message):
     if str(message.from_user.id) not in ADMIN_LIST:
         await message.answer("Эта команда доступна только администраторам!")
         return
 
-    user_text = message.text.strip().capitalize()
-    logging.info(f"Админ {message.from_user.id} отправил текст: {user_text}")
+    logging.info(f"Админ {message.from_user.id} запросил приветствие")
 
     await message.answer(
-            event_message.get('greet_message').format(user_text, ANALYTICS_URL, SIGN_URL),
+            event_message.get('greet_message').format(ANALYTICS_URL, SIGN_URL),
             parse_mode="HTML",
             disable_web_page_preview=True,
         )
+
+@router.message(Command('farewell'))
+async def cmd_farewell(message: Message):
+    if str(message.from_user.id) not in ADMIN_LIST:
+        await message.answer("Эта команда доступна только администраторам!")
+        return
+
+    logging.info(f"Админ {message.from_user.id} запросил прощание")
+
     await message.answer(
-            event_message.get('farewell_message').format(user_text, SIGN_URL),
+            event_message.get('farewell_message').format(SIGN_URL),
             parse_mode="HTML",
             disable_web_page_preview=True
         )
